@@ -5,7 +5,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="ie=edge">
-  <title>Bellybutton Biodiversity</title>
+  <title>Belly Button Biodiversity Dashboard</title>
+  <!-- Bootstrap CSS for styling -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
 </head>
 
@@ -23,6 +24,7 @@
       <div class="col-md-3">
         <div class="card card-body bg-light">
           <h6>Test Subject ID Number:</h6>
+          <!-- Dropdown menu -->
           <select id="selDataset" onchange="optionChanged(this.value)"></select>
         </div>
         <br>
@@ -30,24 +32,125 @@
           <div class="card-header">
             <h4 class="card-title">Demographic Info</h4>
           </div>
+          <!-- Demographic Info Panel -->
           <div id="sample-metadata" class="card-body"></div>
         </div>
       </div>
       <div class="col-md-9">
+        <!-- Bar chart container -->
         <div id="bar"></div>
       </div>
     </div>
     <div class="row">
       <div class="col-md-12">
+        <!-- Bubble chart container -->
         <div id="bubble"></div>
       </div>
     </div>
   </div>
 
+  <!-- D3.js library -->
   <script src="https://d3js.org/d3.v7.min.js"></script>
+  <!-- Plotly.js library -->
   <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-  <script src="./static/js/app.js"></script>
 
+  <!-- JavaScript Code (app.js) -->
+  <script>
+    const url = "https://static.bc-edx.com/data/dl-1-2/m14/lms/starter/samples.json";
+
+    // Build the metadata panel
+    function buildMetadata(sample) {
+      d3.json(url).then((data) => {
+        let metadata = data.metadata;
+        let value = metadata.filter(sampleObj => sampleObj.id == sample);
+        let valueData = value[0];
+        d3.select("#sample-metadata").html("");
+        Object.entries(valueData).forEach(([key, value]) => {
+          d3.select("#sample-metadata").append("h5").text(`${key}: ${value}`);
+        });
+      });
+    }
+
+    // Build the bubble chart
+    function buildBubbleChart(sample) {
+      d3.json(url).then((data) => {
+        let samplesInfo = data.samples;
+        let value = samplesInfo.filter(sampleObj => sampleObj.id == sample);
+        let valueData = value[0];
+        let otu_ids = valueData.otu_ids;
+        let otu_labels = valueData.otu_labels;
+        let sample_values = valueData.sample_values;
+        let trace = {
+          x: otu_ids,
+          y: sample_values,
+          text: otu_labels,
+          mode: "markers",
+          marker: {
+            size: sample_values,
+            color: otu_ids,
+            colorscale: "Earth"
+          }
+        };
+        let layout = {
+          title: "Bacteria Per Sample",
+          hovermode: "closest",
+          xaxis: { title: "OTU ID" }
+        };
+        Plotly.newPlot("bubble", [trace], layout);
+      });
+    }
+
+    // Build the bar chart
+    function buildBarChart(sample) {
+      d3.json(url).then((data) => {
+        let sampleInfo = data.samples;
+        let value = sampleInfo.filter(sampleObj => sampleObj.id == sample);
+        let valueData = value[0];
+        let otu_ids = valueData.otu_ids;
+        let otu_labels = valueData.otu_labels;
+        let sample_values = valueData.sample_values;
+        let yticks = otu_ids.slice(0, 10).map(id => `OTU ${id}`).reverse();
+        let xticks = sample_values.slice(0, 10).reverse();
+        let labels = otu_labels.slice(0, 10).reverse();
+        let trace1 = {
+          x: xticks,
+          y: yticks,
+          text: labels,
+          type: "bar",
+          orientation: "h"
+        };
+        let layout = {
+          title: "Top 10 OTUs Present"
+        };
+        Plotly.newPlot("bar", [trace1], layout);
+      });
+    }
+
+    // Initialize the dashboard
+    function init() {
+      let dropdownMenu = d3.select("#selDataset");
+      d3.json(url).then((data) => {
+        let names = data.names;
+        names.forEach((id) => {
+          dropdownMenu.append("option").text(id).property("value", id);
+        });
+        let sample_one = names[0];
+        buildMetadata(sample_one);
+        buildBarChart(sample_one);
+        buildBubbleChart(sample_one);
+      });
+    }
+
+    // Event listener for dropdown changes
+    function optionChanged(value) {
+      buildMetadata(value);
+      buildBarChart(value);
+      buildBubbleChart(value);
+    }
+
+    // Initialize the dashboard on page load
+    init();
+  </script>
 </body>
 
 </html>
